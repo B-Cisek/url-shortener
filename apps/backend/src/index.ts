@@ -1,8 +1,11 @@
 import express from 'express'
 import { env } from './config/env.js'
+import { toNodeHandler } from 'better-auth/node'
+import { auth } from './auth.js'
 
 const app = express()
 
+app.all('/api/auth/*', toNodeHandler(auth))
 app.use(express.json())
 
 app.get('/', (_request, response) => {
