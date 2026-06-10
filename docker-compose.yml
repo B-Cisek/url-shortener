@@ -1,0 +1,24 @@
+services:
+  database:
+    container_name: url-shorter-database
+    image: postgres:18.1-alpine
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-url}
+      POSTGRES_USER: ${DATABASE_USER:-user}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-password}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${DATABASE_USER:-user} -d ${DATABASE_NAME:-url}',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

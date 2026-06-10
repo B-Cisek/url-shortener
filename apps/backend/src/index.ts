@@ -1,7 +1,13 @@
 import express from 'express'
+import dotenv from 'dotenv'
+import { fileURLToPath } from 'node:url'
+
+dotenv.config({
+  path: fileURLToPath(new URL('../../../.env', import.meta.url)),
+})
 
 const app = express()
-const port = Number(process.env.PORT) || 3000
+const port = Number(process.env.APP_PORT) || 3000
 
 app.use(express.json())
 
