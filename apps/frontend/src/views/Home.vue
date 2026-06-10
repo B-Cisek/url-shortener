@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { useToast } from '@nuxt/ui/composables'
 import { ref } from 'vue'
+import AppHeader from '../components/AppHeader.vue'
+import HomeFeatures from '../components/HomeFeatures.vue'
+import ShortenedUrlResult from '../components/ShortenedUrlResult.vue'
+import UrlInput from '../components/UrlInput.vue'
 
 defineOptions({
   name: 'HomeView',
@@ -63,36 +67,7 @@ async function copyShortenedUrl() {
       class="pointer-events-none absolute right-0 top-1/3 size-72 translate-x-1/2 rounded-full bg-primary/10 blur-3xl"
     />
 
-    <header class="relative border-b border-muted">
-      <UContainer class="flex h-18 items-center justify-between">
-        <RouterLink
-          to="/"
-          class="flex items-center gap-2.5 font-semibold text-highlighted"
-        >
-          <span
-            class="flex size-9 items-center justify-center rounded-xl bg-primary text-inverted"
-          >
-            <UIcon name="i-lucide-link-2" class="size-5" />
-          </span>
-          <span class="text-lg">Shortly</span>
-        </RouterLink>
-
-        <div class="flex items-center gap-2">
-          <UButton
-            label="Zaloguj się"
-            color="neutral"
-            variant="ghost"
-            to="/login"
-          />
-          <UButton
-            label="Załóż konto"
-            color="neutral"
-            variant="outline"
-            to="/register"
-          />
-        </div>
-      </UContainer>
-    </header>
+    <AppHeader />
 
     <main class="relative">
       <UContainer
@@ -119,110 +94,14 @@ async function copyShortenedUrl() {
             udostępnisz wszędzie.
           </p>
 
-          <UCard
-            variant="subtle"
-            class="mx-auto mt-10 max-w-2xl text-left shadow-xl shadow-primary/5"
-            :ui="{ body: 'p-4 sm:p-6' }"
-          >
-            <form
-              class="flex flex-col gap-3 sm:flex-row sm:items-start"
-              @submit.prevent="shortenUrl"
-            >
-              <UFormField class="min-w-0 flex-1">
-                <UInput
-                  v-model="url"
-                  type="url"
-                  color="neutral"
-                  :highlight="false"
-                  :aria-invalid="Boolean(error)"
-                  placeholder="https://przyklad.pl/bardzo-dlugi-link"
-                  icon="i-lucide-link"
-                  size="xl"
-                  autocomplete="url"
-                  class="w-full"
-                  @input="error = ''"
-                />
-                <p v-if="error" class="mt-2 text-sm text-error">
-                  {{ error }}
-                </p>
-              </UFormField>
-              <UButton
-                type="submit"
-                label="Skróć link"
-                trailing-icon="i-lucide-arrow-right"
-                size="xl"
-                class="justify-center"
-              />
-            </form>
-            <p class="mt-3 flex items-center gap-1.5 text-xs text-dimmed">
-              <UIcon name="i-lucide-shield-check" class="size-3.5" />
-              Bez rejestracji. Wklej link i gotowe.
-            </p>
-          </UCard>
-
-          <Transition
-            enter-active-class="transition duration-300 ease-out"
-            enter-from-class="translate-y-2 opacity-0"
-            enter-to-class="translate-y-0 opacity-100"
-          >
-            <UCard
-              v-if="shortenedUrl"
-              variant="outline"
-              class="mx-auto mt-5 max-w-2xl text-left"
-              :ui="{ body: 'p-4 sm:p-5' }"
-            >
-              <div
-                class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div class="min-w-0">
-                  <p class="mb-1 flex items-center gap-1.5 text-sm text-muted">
-                    <UIcon
-                      name="i-lucide-circle-check"
-                      class="size-4 text-success"
-                    />
-                    Twój skrócony link
-                  </p>
-                  <a
-                    :href="shortenedUrl"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="block truncate text-lg font-semibold text-primary hover:underline"
-                  >
-                    {{ shortenedUrl }}
-                  </a>
-                </div>
-                <UButton
-                  label="Kopiuj"
-                  icon="i-lucide-copy"
-                  color="neutral"
-                  variant="outline"
-                  size="lg"
-                  class="justify-center"
-                  @click="copyShortenedUrl"
-                />
-              </div>
-            </UCard>
-          </Transition>
-
-          <div
-            class="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-muted"
-          >
-            <span class="flex items-center gap-2">
-              <UIcon name="i-lucide-zap" class="size-4 text-primary" />
-              Szybko i prosto
-            </span>
-            <span class="flex items-center gap-2">
-              <UIcon name="i-lucide-lock-keyhole" class="size-4 text-primary" />
-              Bezpieczne linki
-            </span>
-            <span class="flex items-center gap-2">
-              <UIcon
-                name="i-lucide-monitor-smartphone"
-                class="size-4 text-primary"
-              />
-              Na każdym urządzeniu
-            </span>
-          </div>
+          <UrlInput
+            v-model="url"
+            :error="error"
+            @input="error = ''"
+            @submit="shortenUrl"
+          />
+          <ShortenedUrlResult :url="shortenedUrl" @copy="copyShortenedUrl" />
+          <HomeFeatures />
         </div>
       </UContainer>
     </main>
