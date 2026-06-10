@@ -4,6 +4,8 @@ import { toNodeHandler } from 'better-auth/node'
 import { auth } from './lib/auth.js'
 import cors from 'cors'
 import { redis } from './lib/redis.js'
+import { pinoHttp } from 'pino-http'
+import { logger } from './lib/logger.js'
 
 const app = express()
 
@@ -16,6 +18,7 @@ app.use(
 )
 app.all('/api/auth/*splat', toNodeHandler(auth))
 app.use(express.json())
+app.use(pinoHttp({ logger }))
 
 app.get('/', (_request, response) => {
   response.json({ message: 'URL shortener API is running' })
@@ -25,7 +28,7 @@ const start = async () => {
   await redis.connect()
 
   const server = app.listen(env.appPort, () => {
-    console.log(`Server is running on http://localhost:${env.appPort}`)
+    logger.info({ port: env.appPort }, 'Server is running')
   })
 
   const shutdown = async () => {
@@ -43,6 +46,6 @@ const start = async () => {
 }
 
 start().catch((error: unknown) => {
-  console.error('Failed to start server', error)
+  logger.error(error, 'Failed to start server')
   process.exit(1)
 })
