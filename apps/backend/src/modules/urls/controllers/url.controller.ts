@@ -1,8 +1,7 @@
 import type { Request, Response } from 'express'
 import { fromNodeHeaders } from 'better-auth/node'
 import { createUrlSchema } from '../dto/createUrl.dto.js'
-import { create } from '../services/url.service.js'
-import { findByShortCode } from '../repositories/url.repository.js'
+import { create, resolve } from '../services/url.service.js'
 import z from 'zod'
 import { auth } from '../../../lib/auth.js'
 
@@ -33,11 +32,11 @@ export const getUrl = async (req: Request, res: Response) => {
     return res.status(404).send('Not Found')
   }
 
-  const url = await findByShortCode(req.params.code as string)
+  const longUrl = await resolve(req.params.code as string)
 
-  if (url === undefined) {
+  if (longUrl === undefined) {
     return res.status(404).send('Not Found')
   }
 
-  res.redirect(url.longUrl)
+  res.redirect(longUrl)
 }

@@ -1,8 +1,9 @@
 import { CreateUrlDto } from '../dto/createUrl.dto.js'
 import { toShortCode } from '../utils/shortCodeGenerator.js'
-import { save } from '../repositories/url.repository.js'
+import { findByShortCode, save } from '../repositories/url.repository.js'
 import { redis } from '../../../lib/redis.js'
 import { COUNTER_KEY } from '../types.js'
+import { urlCacheManager } from '../utils/urlCacheManager.js'
 
 export async function create(
   dto: CreateUrlDto,
@@ -19,4 +20,26 @@ export async function create(
   })
 
   return shortCode
+}
+
+export async function resolve(code: string): Promise<string | undefined> {
+  const cachedUrl = await urlCacheManager.get(code)
+
+  if (cachedUrl !== null) {
+    return cachedUrl
+  }
+
+  const url = await findByShortCode(code)
+
+  if (url === undefined) {
+    return undefined
+  }
+
+  if (url.expiresAt && url.expiresAt.getTime() <= Date.now()) {
+    return undefined
+  }
+
+  await urlCacheManager.set(code, url.longUrl, url.expiresAt)
+
+  return url.longUrl
 }
