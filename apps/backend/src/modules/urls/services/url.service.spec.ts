@@ -35,8 +35,15 @@ describe('create', () => {
 
   it('does not cache a URL before it is used', async () => {
     redisIncr.mockResolvedValue(1)
+    repositorySave.mockResolvedValue({
+      longUrl: 'https://example.com',
+      shortCode: '000001',
+    })
 
-    await create({ url: 'https://example.com' })
+    await expect(create({ url: 'https://example.com' })).resolves.toEqual({
+      shortCode: '000001',
+      shortUrl: 'http://localhost:3000/000001',
+    })
 
     expect(repositorySave).toHaveBeenCalledOnce()
     expect(cacheSet).not.toHaveBeenCalled()

@@ -19,9 +19,9 @@ export const createUrl = async (req: Request, res: Response) => {
     headers: fromNodeHeaders(req.headers),
   })
 
-  const shortCode = await create(result.data, session?.user.id)
+  const response = await create(result.data, session?.user.id)
 
-  res.status(201).json({ shortCode })
+  res.status(201).json(response)
 }
 
 export const getUrl = async (req: Request, res: Response) => {

@@ -9,8 +9,15 @@ type SaveUrl = Pick<
 
 type Url = typeof urls.$inferSelect
 
-export const save = async (url: SaveUrl): Promise<void> => {
-  await db.insert(urls).values(url)
+export const save = async (
+  url: SaveUrl,
+): Promise<{ longUrl: string; shortCode: string }> => {
+  const [result] = await db.insert(urls).values(url).returning({
+    longUrl: urls.longUrl,
+    shortCode: urls.shortCode,
+  })
+
+  return result
 }
 
 export const findByShortCode = async (

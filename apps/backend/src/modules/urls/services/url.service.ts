@@ -4,22 +4,26 @@ import { findByShortCode, save } from '../repositories/url.repository.js'
 import { redis } from '../../../lib/redis.js'
 import { COUNTER_KEY } from '../types.js'
 import { urlCacheManager } from '../utils/urlCacheManager.js'
+import { buildShortUrl } from '../utils/buildShortUrl.js'
 
 export async function create(
   dto: CreateUrlDto,
   userId?: string,
-): Promise<string> {
+): Promise<{ longUrl: string; shortUrl: string }> {
   const counter = await redis.incr(COUNTER_KEY)
 
   const shortCode = toShortCode(counter)
 
-  await save({
+  const url = await save({
     longUrl: dto.url,
     shortCode,
     userId,
   })
 
-  return shortCode
+  return {
+    longUrl: url.longUrl,
+    shortUrl: buildShortUrl(url.shortCode),
+  }
 }
 
 export async function resolve(code: string): Promise<string | undefined> {
