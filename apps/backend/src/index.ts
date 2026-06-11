@@ -6,7 +6,8 @@ import cors from 'cors'
 import { redis } from './lib/redis.js'
 import { pinoHttp } from 'pino-http'
 import { logger } from './lib/logger.js'
-import { router } from './api.js'
+import { router } from './routes.js'
+import { errorHandler } from './middleware/errorHandler.js'
 
 const app = express()
 
@@ -20,7 +21,8 @@ app.use(
 app.all('/api/auth/*splat', toNodeHandler(auth))
 app.use(express.json())
 app.use(pinoHttp({ logger }))
-app.use('/api', router)
+app.use('/', router)
+app.use(errorHandler)
 
 const start = async () => {
   await redis.connect()

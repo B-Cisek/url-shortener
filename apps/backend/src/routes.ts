@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { createUrl } from './controllers/createUrlController.js'
+import { createUrl, getUrl } from './modules/urls/controllers/url.controller.js'
 
 export const router = Router()
 
@@ -12,3 +12,4 @@ router.get('/health', (_request, response) => {
 })
 
 router.post('/create-url', createUrl)
+router.get('/:code', getUrl)
