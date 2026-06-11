@@ -18,9 +18,10 @@ app.use(
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   }),
 )
+
+app.use(pinoHttp({ logger }))
 app.all('/api/auth/*splat', toNodeHandler(auth))
 app.use(express.json())
-app.use(pinoHttp({ logger }))
 app.use('/', router)
 app.use(errorHandler)
 
