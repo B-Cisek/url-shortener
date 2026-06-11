@@ -6,6 +6,7 @@ import cors from 'cors'
 import { redis } from './lib/redis.js'
 import { pinoHttp } from 'pino-http'
 import { logger } from './lib/logger.js'
+import { router } from './api.js'
 
 const app = express()
 
@@ -19,10 +20,7 @@ app.use(
 app.all('/api/auth/*splat', toNodeHandler(auth))
 app.use(express.json())
 app.use(pinoHttp({ logger }))
-
-app.get('/', (_request, response) => {
-  response.json({ message: 'URL shortener API is running' })
-})
+app.use('/api', router)
 
 const start = async () => {
   await redis.connect()
