@@ -1,6 +1,6 @@
-import { db } from '@/db/index.js'
-import { urls } from '@/db/schema.js'
 import { eq } from 'drizzle-orm'
+import { urls } from '../../../db/schema.js'
+import { db } from '../../../db/index.js'
 
 type SaveUrl = Pick<
   typeof urls.$inferInsert,

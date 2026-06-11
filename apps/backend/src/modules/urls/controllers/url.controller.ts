@@ -1,10 +1,10 @@
 import type { Request, Response } from 'express'
 import { fromNodeHeaders } from 'better-auth/node'
-import { auth } from '@/lib/auth.js'
 import { createUrlSchema } from '../dto/createUrl.dto.js'
 import { create } from '../services/url.service.js'
 import { findByShortCode } from '../repositories/url.repository.js'
 import z from 'zod'
+import { auth } from '../../../lib/auth.js'
 
 export const createUrl = async (req: Request, res: Response) => {
   const result = createUrlSchema.safeParse(req.body)
