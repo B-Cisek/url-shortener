@@ -8,8 +8,11 @@ import { pinoHttp } from 'pino-http'
 import { logger } from './lib/logger.js'
 import { router } from './routes.js'
 import { errorHandler } from './middleware/errorHandler.js'
+import compression from 'compression'
 
 const app = express()
+
+app.use(compression)
 
 app.use(
   cors({
