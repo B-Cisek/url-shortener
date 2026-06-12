@@ -8,21 +8,21 @@ import Login from './views/Login.vue'
 import Profile from './views/Profile.vue'
 import Signup from './views/Signup.vue'
 import { authClient } from './lib/auth-client'
-import AuthLayout from './layouts/AuthLayout.vue'
+import Layout from './layouts/DefaultLayout.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
-      path: '/',
-      name: 'home',
-      component: Home,
-      meta: { auth: false },
-    },
-    {
-      component: AuthLayout,
+      component: Layout,
       path: '/',
       children: [
+        {
+          path: '',
+          name: 'home',
+          component: Home,
+          meta: { auth: false },
+        },
         {
           path: 'login',
           name: 'login',
@@ -35,13 +35,13 @@ export const router = createRouter({
           component: Signup,
           meta: { auth: false },
         },
+        {
+          path: 'profile',
+          name: 'profile',
+          component: Profile,
+          meta: { auth: true },
+        },
       ],
-    },
-    {
-      path: '/profile',
-      name: 'profile',
-      component: Profile,
-      meta: { auth: true },
     },
   ],
 })

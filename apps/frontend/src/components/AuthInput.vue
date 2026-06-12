@@ -5,9 +5,7 @@ withDefaults(
   defineProps<{
     autocomplete?: string
     error?: string
-    icon: string
     label: string
-    placeholder: string
     type?: 'email' | 'password' | 'text'
   }>(),
   {
@@ -27,11 +25,8 @@ defineEmits<{
     <UInput
       v-model="model"
       :type="type"
-      color="neutral"
       :highlight="false"
       :aria-invalid="Boolean(error)"
-      :placeholder="placeholder"
-      :icon="icon"
       :autocomplete="autocomplete"
       size="xl"
       class="w-full"

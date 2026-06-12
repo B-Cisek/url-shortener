@@ -3,6 +3,7 @@ const url = defineModel<string>({ required: true })
 
 defineProps<{
   error?: string
+  loading?: boolean
 }>()
 
 defineEmits<{
@@ -25,11 +26,9 @@ defineEmits<{
         <UInput
           v-model="url"
           type="url"
-          color="neutral"
           :highlight="false"
           :aria-invalid="Boolean(error)"
-          placeholder="https://przyklad.pl/bardzo-dlugi-link"
-          icon="i-lucide-link"
+          placeholder="Wklej długi link tutaj"
           size="xl"
           autocomplete="url"
           class="w-full"
@@ -43,6 +42,8 @@ defineEmits<{
         type="submit"
         label="Skróć"
         size="xl"
+        :loading="loading"
+        :disabled="loading"
         class="justify-center uppercase font-semibold"
       />
     </form>

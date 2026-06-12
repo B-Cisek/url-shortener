@@ -95,8 +95,6 @@ async function register() {
         label="E-mail"
         type="email"
         :error="errors.email"
-        placeholder="ty@przyklad.pl"
-        icon="i-lucide-mail"
         autocomplete="email"
         @input="errors.email = ''"
       />
@@ -105,8 +103,6 @@ async function register() {
         label="Hasło"
         type="password"
         :error="errors.password"
-        placeholder="Minimum 8 znaków"
-        icon="i-lucide-lock-keyhole"
         autocomplete="new-password"
         @input="errors.password = ''"
       />
@@ -123,7 +119,6 @@ async function register() {
       <UButton
         type="submit"
         label="Załóż konto"
-        trailing-icon="i-lucide-arrow-right"
         size="xl"
         block
         :loading="loading"

@@ -80,8 +80,6 @@ async function login() {
         label="E-mail"
         type="email"
         :error="errors.email"
-        placeholder="ty@przyklad.pl"
-        icon="i-lucide-mail"
         autocomplete="email"
         @input="errors.email = ''"
       />
@@ -90,15 +88,12 @@ async function login() {
         label="Hasło"
         type="password"
         :error="errors.password"
-        placeholder="Twoje hasło"
-        icon="i-lucide-lock-keyhole"
         autocomplete="current-password"
         @input="errors.password = ''"
       />
       <UButton
         type="submit"
         label="Zaloguj się"
-        trailing-icon="i-lucide-arrow-right"
         size="xl"
         block
         :loading="loading"

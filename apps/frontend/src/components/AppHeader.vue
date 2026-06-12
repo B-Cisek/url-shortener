@@ -26,21 +26,20 @@ async function logout() {
 </script>
 
 <template>
-  <header class="relative border-b border-muted">
-    <UContainer class="flex h-18 items-center justify-between">
-      <RouterLink
-        to="/"
-        class="flex items-center gap-2.5 font-semibold text-highlighted"
-      >
+  <UHeader title="Shortly" class="bg-transparent">
+    <template #title>
+      <span class="flex items-center gap-2.5 font-semibold">
         <span
           class="flex size-9 items-center justify-center rounded-xl bg-primary text-inverted"
         >
           <UIcon name="i-lucide-link-2" class="size-5" />
         </span>
-        <span class="text-lg">Shortly</span>
-      </RouterLink>
+        <span class="text-lg">Url Shortener</span>
+      </span>
+    </template>
 
-      <div class="flex items-center gap-2">
+    <template #right>
+      <div class="hidden items-center gap-2 lg:flex">
         <UButton
           v-if="!session && !isPending"
           label="Zaloguj się"
@@ -72,6 +71,45 @@ async function logout() {
           @click="logout"
         />
       </div>
-    </UContainer>
-  </header>
+    </template>
+
+    <template #body>
+      <div class="flex flex-col gap-2">
+        <UButton
+          v-if="!session && !isPending"
+          label="Zaloguj się"
+          color="neutral"
+          variant="ghost"
+          to="/login"
+          block
+        />
+        <UButton
+          v-if="!session && !isPending"
+          label="Załóż konto"
+          color="neutral"
+          variant="outline"
+          to="/signup"
+          block
+        />
+        <UButton
+          v-if="session"
+          label="Profil"
+          color="neutral"
+          variant="ghost"
+          to="/profile"
+          block
+        />
+        <UButton
+          v-if="session"
+          label="Wyloguj się"
+          icon="i-lucide-log-out"
+          color="neutral"
+          variant="outline"
+          :loading="isSigningOut"
+          block
+          @click="logout"
+        />
+      </div>
+    </template>
+  </UHeader>
 </template>
