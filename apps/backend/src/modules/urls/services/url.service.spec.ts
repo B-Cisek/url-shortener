@@ -1,13 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { redis } from '../../../lib/redis.js'
+import { getNextCounter } from '../repositories/shortCodeCounter.repository.js'
 import { findByShortCode, save } from '../repositories/url.repository.js'
 import { urlCacheManager } from '../utils/urlCacheManager.js'
 import { create, resolve } from './url.service.js'
 
-vi.mock('../../../lib/redis.js', () => ({
-  redis: {
-    incr: vi.fn(),
-  },
+vi.mock('../repositories/shortCodeCounter.repository.js', () => ({
+  getNextCounter: vi.fn(),
 }))
 
 vi.mock('../repositories/url.repository.js', () => ({
@@ -22,7 +20,7 @@ vi.mock('../utils/urlCacheManager.js', () => ({
   },
 }))
 
-const redisIncr = vi.mocked(redis.incr)
+const repositoryGetNextCounter = vi.mocked(getNextCounter)
 const repositoryFindByShortCode = vi.mocked(findByShortCode)
 const repositorySave = vi.mocked(save)
 const cacheGet = vi.mocked(urlCacheManager.get)
@@ -34,14 +32,14 @@ describe('create', () => {
   })
 
   it('does not cache a URL before it is used', async () => {
-    redisIncr.mockResolvedValue(1)
+    repositoryGetNextCounter.mockResolvedValue(1)
     repositorySave.mockResolvedValue({
       longUrl: 'https://example.com',
       shortCode: '000001',
     })
 
     await expect(create({ url: 'https://example.com' })).resolves.toEqual({
-      shortCode: '000001',
+      longUrl: 'https://example.com',
       shortUrl: 'http://localhost:3000/000001',
     })
 

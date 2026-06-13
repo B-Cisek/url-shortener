@@ -7,7 +7,16 @@ import {
   uuid,
   index,
   varchar,
+  pgSequence,
 } from 'drizzle-orm/pg-core'
+import { COUNTER_KEY } from '../modules/urls/types.js'
+
+export const shortCodeCounter = pgSequence(COUNTER_KEY, {
+  startWith: 1,
+  increment: 1,
+  maxValue: 56_800_235_584,
+  cycle: false,
+})
 
 export const user = pgTable('user', {
   id: uuid('id')

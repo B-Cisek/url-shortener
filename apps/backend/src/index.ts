@@ -12,8 +12,6 @@ import compression from 'compression'
 
 const app = express()
 
-app.use(compression)
-
 app.use(
   cors({
     origin: env.frontendUrl,
@@ -25,6 +23,7 @@ app.use(
 app.use(pinoHttp({ logger }))
 app.all('/api/auth/*splat', toNodeHandler(auth))
 app.use(express.json())
+app.use(compression())
 app.use('/', router)
 app.use(errorHandler)
 

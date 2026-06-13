@@ -1,16 +1,15 @@
 import { CreateUrlDto } from '../dto/createUrl.dto.js'
 import { toShortCode } from '../utils/shortCodeGenerator.js'
 import { findByShortCode, save } from '../repositories/url.repository.js'
-import { redis } from '../../../lib/redis.js'
-import { COUNTER_KEY } from '../types.js'
 import { urlCacheManager } from '../utils/urlCacheManager.js'
 import { buildShortUrl } from '../utils/buildShortUrl.js'
+import { getNextCounter } from '../repositories/shortCodeCounter.repository.js'
 
 export async function create(
   dto: CreateUrlDto,
   userId?: string,
 ): Promise<{ longUrl: string; shortUrl: string }> {
-  const counter = await redis.incr(COUNTER_KEY)
+  const counter = await getNextCounter()
 
   const shortCode = toShortCode(counter)
 
