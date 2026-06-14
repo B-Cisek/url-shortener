@@ -1,40 +1,39 @@
 # URL Shortener
 
-Aplikacja do skracania adresów URL z panelem użytkownika i podstawową
-analityką kliknięć. Link można utworzyć anonimowo lub po zalogowaniu. Linki
-utworzone przez zalogowanego użytkownika są widoczne w jego panelu wraz z
-liczbą kliknięć.
+A URL shortening application with a user dashboard and basic click analytics.
+Links can be created anonymously or while signed in. Links created by signed-in
+users are displayed in their dashboard together with click counts.
 
-Projekt jest monorepo zarządzanym przez `pnpm` i składa się z aplikacji Vue
-oraz API Express.
+The project is a `pnpm`-managed monorepo consisting of a Vue application and an
+Express API.
 
-## Najważniejsze funkcje
+## Key Features
 
-- generowanie unikalnych, sześcioznakowych kodów Base62,
-- szybkie przekierowania z wykorzystaniem cache Redis,
-- rejestracja i logowanie przez Better Auth,
-- panel użytkownika z listą utworzonych linków,
-- asynchroniczne zbieranie i godzinowa agregacja statystyk kliknięć,
-- współdzielony rate limiting oparty na Redis,
-- gotowa konfiguracja Docker Compose z Nginx i dwiema instancjami API.
+- generation of unique six-character Base62 codes,
+- fast redirects using a Redis cache,
+- registration and sign-in with Better Auth,
+- user dashboard listing created links,
+- asynchronous collection and hourly aggregation of click statistics,
+- shared Redis-backed rate limiting,
+- ready-to-use Docker Compose configuration with Nginx and two API instances.
 
-## Stos technologiczny
+## Technology Stack
 
-| Warstwa          | Technologie                                  |
-| ---------------- | -------------------------------------------- |
-| Frontend         | Vue 3, Vite, TypeScript, Vue Router, Nuxt UI |
-| Backend          | Node.js, Express 5, TypeScript, Zod          |
-| Uwierzytelnianie | Better Auth                                  |
-| Baza danych      | PostgreSQL, Drizzle ORM                      |
-| Cache i kolejka  | Redis, Redis Streams                         |
-| Infrastruktura   | Docker Compose, Nginx                        |
-| Testy            | Vitest                                       |
+| Layer           | Technologies                                 |
+| --------------- | -------------------------------------------- |
+| Frontend        | Vue 3, Vite, TypeScript, Vue Router, Nuxt UI |
+| Backend         | Node.js, Express 5, TypeScript, Zod          |
+| Authentication  | Better Auth                                  |
+| Database        | PostgreSQL, Drizzle ORM                      |
+| Cache and queue | Redis, Redis Streams                         |
+| Infrastructure  | Docker Compose, Nginx                        |
+| Tests           | Vitest                                       |
 
-## Architektura
+## Architecture
 
 ```mermaid
 flowchart LR
-    Browser[Przeglądarka] --> Frontend[Vue frontend]
+    Browser[Browser] --> Frontend[Vue frontend]
     Browser --> Nginx[Nginx / load balancer]
     Frontend --> Nginx
     Nginx --> API1[Express API 1]
@@ -47,64 +46,62 @@ flowchart LR
     Worker --> PostgreSQL
 ```
 
-### Podział odpowiedzialności
+### Responsibilities
 
-- `apps/frontend/` odpowiada za formularz skracania, logowanie, rejestrację i
-  panel użytkownika.
-- `apps/backend/src/modules/urls/` obsługuje tworzenie linków, generowanie
-  kodów, przekierowania, cache i pobieranie linków użytkownika.
-- `apps/backend/src/modules/analytics/` tworzy zdarzenia kliknięć i agreguje
-  je według godziny, kraju, urządzenia oraz domeny odsyłającej.
-- `apps/backend/src/workers/analytics.worker.ts` konsumuje zdarzenia z Redis
-  Streams i zapisuje agregaty w PostgreSQL.
-- PostgreSQL jest źródłem prawdy dla linków, użytkowników i statystyk.
-- Redis przechowuje cache przekierowań, liczniki rate limitera oraz strumień
-  zdarzeń analitycznych.
-- Nginx rozdziela ruch pomiędzy dwie instancje bezstanowego API.
+- `apps/frontend/` provides the shortening form, sign-in, registration, and
+  user dashboard.
+- `apps/backend/src/modules/urls/` handles link creation, code generation,
+  redirects, caching, and retrieving user links.
+- `apps/backend/src/modules/analytics/` creates click events and aggregates
+  them by hour, country, device, and referrer domain.
+- `apps/backend/src/workers/analytics.worker.ts` consumes events from Redis
+  Streams and writes aggregates to PostgreSQL.
+- PostgreSQL is the source of truth for links, users, and statistics.
+- Redis stores the redirect cache, rate limiter counters, and analytics event
+  stream.
+- Nginx distributes traffic between two stateless API instances.
 
-## Główne przepływy
+## Main Flows
 
-### Tworzenie skróconego linku
+### Creating a Shortened Link
 
-1. Frontend wysyła `POST /api/create-url` z długim adresem.
-2. API waliduje adres przez Zod i sprawdza współdzielony rate limit w Redis.
-3. PostgreSQL zwraca następną wartość sekwencji `short_code_counter`.
-4. Wartość jest kodowana do Base62 i dopełniana zerami do sześciu znaków.
-5. Kod, długi adres i opcjonalny identyfikator użytkownika są zapisywane w
-   tabeli `urls`.
-6. API zwraca publiczny skrócony adres.
+1. The frontend sends `POST /api/create-url` with the long URL.
+2. The API validates the URL with Zod and checks the shared Redis rate limit.
+3. PostgreSQL returns the next value from the `short_code_counter` sequence.
+4. The value is encoded as Base62 and left-padded with zeros to six characters.
+5. The code, long URL, and optional user ID are saved in the `urls` table.
+6. The API returns the public shortened URL.
 
-Nowy link nie trafia od razu do cache. Zostanie zapisany w Redis dopiero przy
-pierwszym użyciu.
+A new link is not immediately added to the cache. It is stored in Redis only
+after its first use.
 
-### Przekierowanie
+### Redirect
 
-1. Klient wywołuje `GET /:code`.
-2. API szuka kodu w Redis pod kluczem `url:<code>`.
-3. Przy braku wpisu API pobiera link z PostgreSQL, sprawdza jego datę
-   wygaśnięcia i zapisuje wynik w cache na maksymalnie godzinę.
-4. API zwraca przekierowanie HTTP do długiego adresu.
-5. Zdarzenie kliknięcia jest publikowane asynchronicznie do Redis Streams, bez
-   blokowania przekierowania.
+1. The client requests `GET /:code`.
+2. The API looks for the code in Redis under the `url:<code>` key.
+3. On a cache miss, the API retrieves the link from PostgreSQL, checks its
+   expiration date, and caches the result for up to one hour.
+4. The API returns an HTTP redirect to the long URL.
+5. A click event is asynchronously published to Redis Streams without blocking
+   the redirect.
 
-### Analityka kliknięć
+### Click Analytics
 
-Każde kliknięcie otrzymuje losowy `eventId` i zawiera identyfikator linku,
-czas, kraj, typ urządzenia oraz domenę odsyłającą. Worker pobiera zdarzenia w
-partiach z grupy konsumentów Redis Streams.
+Each click receives a random `eventId` and contains the link ID, timestamp,
+country, device type, and referrer domain. The worker retrieves events in
+batches using a Redis Streams consumer group.
 
-Przetwarzanie zdarzenia odbywa się w transakcji:
+Event processing takes place in a transaction:
 
-1. `eventId` jest dodawane do tabeli `processed_click_events`.
-2. Powtórzone zdarzenie jest pomijane, dzięki czemu przetwarzanie jest
-   idempotentne.
-3. Licznik w `click_analytics_hourly` jest tworzony lub zwiększany.
-4. Błędne zdarzenia trafiają do osobnego dead-letter stream.
+1. The `eventId` is inserted into the `processed_click_events` table.
+2. Duplicate events are skipped, making processing idempotent.
+3. The counter in `click_analytics_hourly` is created or incremented.
+4. Invalid events are sent to a separate dead-letter stream.
 
-## Generowanie krótkich kodów
+## Short Code Generation
 
-Kody nie są losowe. Każdy kod powstaje z kolejnej liczby całkowitej zwracanej
-przez sekwencję PostgreSQL:
+Codes are not random. Each code is generated from the next integer returned by
+a PostgreSQL sequence:
 
 ```text
 1  -> 1      -> 000001
@@ -112,55 +109,54 @@ przez sekwencję PostgreSQL:
 62 -> 10     -> 000010
 ```
 
-Algorytm Base62 używa alfabetu:
+The Base62 algorithm uses the following alphabet:
 
 ```text
 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
 ```
 
-Każda liczba jest dzielona przez `62`, a kolejne reszty tworzą reprezentację
-Base62. Wynik jest dopełniany znakami `0` z lewej strony do długości sześciu
-znaków. Unikalność zapewniają sekwencja PostgreSQL oraz unikalny indeks na
-kolumnie `shortCode`.
+Each number is repeatedly divided by `62`, and the resulting remainders form
+its Base62 representation. The result is left-padded with `0` characters to a
+length of six. Uniqueness is guaranteed by the PostgreSQL sequence and a unique
+index on the `shortCode` column.
 
-Sześć znaków daje `62^6`, czyli `56 800 235 584` możliwych kombinacji,
-licząc również `000000`. Obecna implementacja zaczyna od `000001`, więc
-faktycznie wykorzystuje maksymalnie `62^6 - 1` kodów. Sekwencja dopuszcza
-jeszcze wartość `62^6`, której generator nie potrafi zapisać w sześciu
-znakach. Przed dojściem do limitu należy poprawić maksymalną wartość sekwencji
-albo zwiększyć długość kodu.
+Six characters provide `62^6`, or `56,800,235,584`, possible combinations,
+including `000000`. The current implementation starts at `000001`, so it can
+actually use at most `62^6 - 1` codes. The sequence also allows the value
+`62^6`, which the generator cannot represent using six characters. Before
+reaching the limit, the sequence maximum must be corrected or the code length
+must be increased.
 
-### Zalety obecnego podejścia
+### Advantages of the Current Approach
 
-- brak kolizji i ponawiania losowania kodu,
-- prosty i szybki algorytm,
-- bezpieczne generowanie kodów przez wiele instancji API,
-- bardzo duża przestrzeń kodów przy krótkim adresie.
+- no collisions or code generation retries,
+- simple and fast algorithm,
+- safe code generation across multiple API instances,
+- very large code space while keeping URLs short.
 
-### Wady obecnego podejścia
+### Disadvantages of the Current Approach
 
-- kody są przewidywalne i umożliwiają enumerację istniejących linków,
-- tworzenie każdego linku wymaga kontaktu z główną bazą danych,
-- ujawniona liczba może przybliżać liczbę utworzonych linków,
-- długość kodu jest ograniczona na stałe do sześciu znaków.
+- codes are predictable and allow enumeration of existing links,
+- creating every link requires contacting the primary database,
+- exposed sequence values can approximate the number of created links,
+- code length is fixed at six characters.
 
-## Model danych
+## Data Model
 
-Najważniejsze tabele:
+The main tables are:
 
-- `urls` - długi URL, krótki kod, właściciel i opcjonalna data wygaśnięcia,
-- `user`, `session`, `account`, `verification` - dane Better Auth,
-- `click_analytics_hourly` - zagregowane liczniki kliknięć,
-- `processed_click_events` - identyfikatory przetworzonych zdarzeń, usuwane po
-  siedmiu dniach.
+- `urls` - long URL, short code, owner, and optional expiration date,
+- `user`, `session`, `account`, `verification` - Better Auth data,
+- `click_analytics_hourly` - aggregated click counters,
+- `processed_click_events` - processed event IDs, deleted after seven days.
 
-## Uruchomienie lokalne
+## Local Development
 
-Wymagania:
+Requirements:
 
 - Node.js 24,
 - pnpm 11,
-- Docker z Docker Compose.
+- Docker with Docker Compose.
 
 ```bash
 pnpm install
@@ -169,7 +165,7 @@ docker compose up -d
 pnpm --filter @url-shortener/backend db:migrate
 ```
 
-Uruchom API, worker analityki i frontend w osobnych terminalach:
+Run the API, analytics worker, and frontend in separate terminals:
 
 ```bash
 pnpm dev:backend
@@ -177,121 +173,116 @@ pnpm --filter @url-shortener/backend analytics:dev
 pnpm dev:frontend
 ```
 
-Domyślnie frontend działa pod `http://localhost:5173`, a API pod
+By default, the frontend runs at `http://localhost:5173` and the API at
 `http://localhost:3000`.
 
-Przed uruchomieniem logowania ustaw w `.env` silną wartość
-`BETTER_AUTH_SECRET`.
+Before using authentication, set a strong `BETTER_AUTH_SECRET` value in `.env`.
 
-## Endpointy API
+## API Endpoints
 
-| Metoda | Ścieżka           | Opis                                  |
-| ------ | ----------------- | ------------------------------------- |
-| `GET`  | `/health`         | Stan API                              |
-| `POST` | `/api/create-url` | Tworzy skrócony link                  |
-| `GET`  | `/api/urls`       | Zwraca linki zalogowanego użytkownika |
-| `GET`  | `/:code`          | Przekierowuje do długiego adresu      |
-| różne  | `/api/auth/*`     | Endpointy Better Auth                 |
+| Method  | Path              | Description                               |
+| ------- | ----------------- | ----------------------------------------- |
+| `GET`   | `/health`         | Returns the API health status             |
+| `POST`  | `/api/create-url` | Creates a shortened link                  |
+| `GET`   | `/api/urls`       | Returns links owned by the signed-in user |
+| `GET`   | `/:code`          | Redirects to the long URL                 |
+| various | `/api/auth/*`     | Better Auth endpoints                     |
 
-## Problemy przy większej skali i możliwe rozwiązania
+## Scaling Challenges and Possible Solutions
 
-### 1. PostgreSQL na krytycznej ścieżce tworzenia linku
+### 1. PostgreSQL on the Link Creation Critical Path
 
-Każde utworzenie linku pobiera pojedynczą wartość sekwencji i wykonuje zapis w
-PostgreSQL. Sekwencja działa poprawnie przy wielu instancjach, ale jedna baza
-staje się ograniczeniem wydajności i pojedynczym punktem awarii.
+Creating every link retrieves a single sequence value and writes to PostgreSQL.
+The sequence works correctly across multiple instances, but a single database
+becomes a performance bottleneck and a single point of failure.
 
-Możliwe rozwiązania:
+Possible solutions:
 
-- użyć zarządzanego PostgreSQL z replikacją, automatycznym failoverem i
-  poolingiem połączeń,
-- przydzielać instancjom zakresy identyfikatorów zamiast pobierać każdą
-  wartość osobno,
-- użyć rozproszonego generatora identyfikatorów, a następnie kodować jego wynik
-  do Base62,
-- partycjonować dane i rozdzielać ruch zapisu, gdy pojedynczy klaster przestaje
-  wystarczać.
+- use managed PostgreSQL with replication, automatic failover, and connection
+  pooling,
+- allocate ID ranges to instances instead of retrieving each value separately,
+- use a distributed ID generator and encode its output as Base62,
+- partition data and distribute write traffic when a single cluster is no
+  longer sufficient.
 
-### 2. Przewidywalne kody i enumeracja linków
+### 2. Predictable Codes and Link Enumeration
 
-Sekwencyjne kody pozwalają łatwo odgadywać sąsiednie adresy. Jest to problem,
-jeśli użytkownicy traktują niepubliczny link jako zabezpieczenie.
+Sequential codes make neighboring URLs easy to guess. This is a problem if
+users treat an unlisted link as a security mechanism.
 
-Możliwe rozwiązania:
+Possible solutions:
 
-- permutować identyfikator przed kodowaniem przy użyciu algorytmu odwracalnego
-  i tajnego klucza,
-- używać kryptograficznie losowych kodów oraz obsługiwać rzadkie kolizje,
-- wydłużyć kod i dodać możliwość ochrony linku hasłem lub kontroli dostępu.
+- permute the identifier before encoding it using a reversible algorithm and a
+  secret key,
+- use cryptographically random codes and handle rare collisions,
+- increase the code length and add password protection or access control.
 
-### 3. Cache miss i przeciążenie bazy
+### 3. Cache Misses and Database Overload
 
-Popularny link zwykle jest obsługiwany z Redis, ale wygaśnięcie wpisu lub
-restart cache może spowodować wiele równoległych zapytań do PostgreSQL.
-Nieistniejące kody nie są cachowane, więc masowe odpytywanie błędnych kodów
-również obciąża bazę.
+A popular link is usually served from Redis, but cache expiration or a cache
+restart can cause many concurrent PostgreSQL queries. Nonexistent codes are not
+cached, so large-scale requests for invalid codes also put load on the
+database.
 
-Możliwe rozwiązania:
+Possible solutions:
 
-- dodać cache negatywny dla nieistniejących kodów,
-- stosować mechanizm single-flight lub blokadę przy odświeżaniu popularnego
-  wpisu,
-- losowo rozpraszać TTL, aby wiele wpisów nie wygasało jednocześnie,
-- dodać repliki tylko do odczytu lub rozproszony magazyn key-value dla
-  przekierowań.
+- add negative caching for nonexistent codes,
+- use a single-flight mechanism or locking when refreshing a popular entry,
+- add random jitter to TTL values so many entries do not expire at once,
+- add read replicas or a distributed key-value store for redirects.
 
-### 4. Redis jako pojedynczy punkt awarii
+### 4. Redis as a Single Point of Failure
 
-API wymaga połączenia z Redis podczas startu. Redis obsługuje cache, rate
-limiting i kolejkę analityki, więc jego awaria wpływa na kilka funkcji
-jednocześnie.
+The API requires a Redis connection during startup. Redis handles caching, rate
+limiting, and the analytics queue, so its failure affects several features at
+once.
 
-Możliwe rozwiązania:
+Possible solutions:
 
-- uruchomić Redis Sentinel lub zarządzany Redis z replikacją i failoverem,
-- rozdzielić cache, rate limiting i strumienie na osobne klastry,
-- pozwolić przekierowaniom działać bez cache przez kontrolowany fallback do
+- run Redis Sentinel or managed Redis with replication and failover,
+- separate caching, rate limiting, and streams into dedicated clusters,
+- allow redirects to work without cache through a controlled PostgreSQL
+  fallback,
+- add timeouts, a circuit breaker, and latency monitoring.
+
+### 5. Analytics Durability and Throughput
+
+The click stream is trimmed to approximately `100,000` entries. If the worker
+is slow or unavailable, unprocessed events can be lost. Additionally, a very
+popular link causes frequent updates to the same aggregate row, leading to
+write contention.
+
+Possible solutions:
+
+- run multiple workers in the same consumer group,
+- add the worker as a service in the production Docker Compose configuration,
+- monitor stream length, pending entries, and the dead-letter stream,
+- increase retention or use a durable broker such as Kafka,
+- aggregate clicks in memory or Redis and periodically write larger batches to
   PostgreSQL,
-- dodać timeouty, circuit breaker i monitoring opóźnień.
+- partition the analytics table by time.
 
-### 5. Trwałość i przepustowość analityki
+### 6. Growing User Dashboard Queries
 
-Strumień kliknięć jest przycinany do około `100 000` wpisów. Przy wolnym lub
-wyłączonym workerze nieprzetworzone zdarzenia mogą zostać utracone. Dodatkowo
-bardzo popularny link powoduje częste aktualizacje tego samego wiersza
-agregatu, co prowadzi do rywalizacji o zapis.
+The `/api/urls` endpoint retrieves every link owned by a user and calculates
+the click total by joining the analytics table. Query cost grows with the
+number of links and analytics dimensions.
 
-Możliwe rozwiązania:
+Possible solutions:
 
-- uruchamiać wiele workerów w tej samej grupie konsumentów,
-- dodać worker jako usługę w produkcyjnym Docker Compose,
-- monitorować długość strumienia, pending entries i dead-letter stream,
-- zwiększyć retencję albo użyć trwałego brokera, na przykład Kafka,
-- agregować kliknięcia w pamięci lub w Redis i okresowo zapisywać większe
-  partie do PostgreSQL,
-- partycjonować tabelę analityki po czasie.
+- add cursor-based pagination,
+- maintain a separate total click counter for each link,
+- move heavier reports to a dedicated analytics store,
+- limit the time range and returned columns.
 
-### 6. Rosnące zapytania panelu użytkownika
+### 7. Security and Abuse
 
-Endpoint `/api/urls` pobiera wszystkie linki użytkownika i oblicza sumę
-kliknięć przez połączenie z tabelą analityki. Koszt zapytania rośnie wraz z
-liczbą linków i wymiarów statystyk.
+A public URL shortener can be used to distribute phishing pages, malicious
+URLs, and spam. Rate limiting alone does not solve this problem.
 
-Możliwe rozwiązania:
+Possible solutions:
 
-- dodać paginację kursorową,
-- utrzymywać osobny łączny licznik kliknięć dla każdego linku,
-- przenieść cięższe raporty do osobnego magazynu analitycznego,
-- ograniczać zakres czasu i zwracane kolumny.
-
-### 7. Bezpieczeństwo i nadużycia
-
-Publiczny skracacz może służyć do rozpowszechniania phishingu, złośliwych
-adresów i spamu. Sam rate limit nie rozwiązuje tego problemu.
-
-Możliwe rozwiązania:
-
-- sprawdzać reputację domen i adresów przy tworzeniu linku,
-- blokować niebezpieczne hosty, prywatne adresy IP i niedozwolone schematy,
-- dodać system zgłoszeń, moderację oraz możliwość szybkiego wyłączenia linku,
-- stosować limity per konto, IP i zakres sieci oraz ochronę przed botami.
+- check domain and URL reputation during link creation,
+- block dangerous hosts, private IP addresses, and unsupported schemes,
+- add reporting, moderation, and the ability to quickly disable links,
+- apply limits per account, IP, and network range, and add bot protection.
