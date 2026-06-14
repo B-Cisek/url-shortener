@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getNextCounter } from '../repositories/shortCodeCounter.repository.js'
-import { findByShortCode, save } from '../repositories/url.repository.js'
+import {
+  findByShortCode,
+  findByUserId,
+  save,
+} from '../repositories/url.repository.js'
 import { urlCacheManager } from '../utils/urlCacheManager.js'
-import { create, resolve } from './url.service.js'
+import { create, findUserUrls, resolve } from './url.service.js'
 
 vi.mock('../repositories/shortCodeCounter.repository.js', () => ({
   getNextCounter: vi.fn(),
@@ -10,6 +14,7 @@ vi.mock('../repositories/shortCodeCounter.repository.js', () => ({
 
 vi.mock('../repositories/url.repository.js', () => ({
   findByShortCode: vi.fn(),
+  findByUserId: vi.fn(),
   save: vi.fn(),
 }))
 
@@ -22,6 +27,7 @@ vi.mock('../utils/urlCacheManager.js', () => ({
 
 const repositoryGetNextCounter = vi.mocked(getNextCounter)
 const repositoryFindByShortCode = vi.mocked(findByShortCode)
+const repositoryFindByUserId = vi.mocked(findByUserId)
 const repositorySave = vi.mocked(save)
 const cacheGet = vi.mocked(urlCacheManager.get)
 const cacheSet = vi.mocked(urlCacheManager.set)
@@ -104,5 +110,36 @@ describe('resolve', () => {
 
     await expect(resolve('abc123')).resolves.toBeUndefined()
     expect(cacheSet).not.toHaveBeenCalled()
+  })
+})
+
+describe('findUserUrls', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('maps user URLs to their public API representation', async () => {
+    repositoryFindByUserId.mockResolvedValue([
+      {
+        id: '01976c18-0e28-7000-8000-000000000000',
+        longUrl: 'https://example.com',
+        shortCode: 'abc123',
+        clickCount: 42,
+        createdAt: new Date('2026-06-15T10:00:00.000Z'),
+        expiresAt: null,
+      },
+    ])
+
+    await expect(findUserUrls('user-id')).resolves.toEqual([
+      {
+        id: '01976c18-0e28-7000-8000-000000000000',
+        longUrl: 'https://example.com',
+        shortUrl: 'http://localhost:3000/abc123',
+        clickCount: 42,
+        createdAt: new Date('2026-06-15T10:00:00.000Z'),
+        expiresAt: null,
+      },
+    ])
+    expect(repositoryFindByUserId).toHaveBeenCalledExactlyOnceWith('user-id')
   })
 })

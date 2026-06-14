@@ -1,5 +1,9 @@
 import { Router } from 'express'
-import { createUrl, getUrl } from './modules/urls/controllers/url.controller.js'
+import {
+  createUrl,
+  getUrl,
+  getUserUrls,
+} from './modules/urls/controllers/url.controller.js'
 import { createUrlRateLimiter } from './middleware/rateLimiters.js'
 
 export const createRouter = () => {
@@ -13,7 +17,8 @@ export const createRouter = () => {
     })
   })
 
-  router.post('/create-url', createUrlRateLimiter(), createUrl)
+  router.post('/api/create-url', createUrlRateLimiter(), createUrl)
+  router.get('/api/urls', getUserUrls)
   router.get('/:code', getUrl)
 
   return router

@@ -61,9 +61,12 @@ async function shortenUrl() {
   isLoading.value = true
 
   try {
-    const { data } = await apiClient.post<CreateUrlResponse>('/create-url', {
-      url: parsedUrl.href,
-    })
+    const { data } = await apiClient.post<CreateUrlResponse>(
+      '/api/create-url',
+      {
+        url: parsedUrl.href,
+      },
+    )
 
     shortenedUrl.value = data.shortUrl
   } catch (requestError) {

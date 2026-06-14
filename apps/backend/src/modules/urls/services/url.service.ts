@@ -1,6 +1,10 @@
 import { CreateUrlDto } from '../dto/createUrl.dto.js'
 import { toShortCode } from '../utils/shortCodeGenerator.js'
-import { findByShortCode, save } from '../repositories/url.repository.js'
+import {
+  findByShortCode,
+  findByUserId,
+  save,
+} from '../repositories/url.repository.js'
 import { urlCacheManager } from '../utils/urlCacheManager.js'
 import { buildShortUrl } from '../utils/buildShortUrl.js'
 import { getNextCounter } from '../repositories/shortCodeCounter.repository.js'
@@ -51,4 +55,17 @@ export async function resolve(code: string): Promise<ResolvedUrl | undefined> {
   await urlCacheManager.set(code, resolvedUrl, url.expiresAt)
 
   return resolvedUrl
+}
+
+export async function findUserUrls(userId: string) {
+  const userUrls = await findByUserId(userId)
+
+  return userUrls.map((url) => ({
+    id: url.id,
+    longUrl: url.longUrl,
+    shortUrl: buildShortUrl(url.shortCode),
+    clickCount: url.clickCount,
+    createdAt: url.createdAt,
+    expiresAt: url.expiresAt,
+  }))
 }

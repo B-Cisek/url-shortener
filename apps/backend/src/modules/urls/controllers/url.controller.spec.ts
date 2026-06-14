@@ -2,15 +2,21 @@ import type { Request, Response } from 'express'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createClickEvent } from '../../analytics/clickEvent.js'
 import { publishClick } from '../../analytics/clickPublisher.js'
-import { resolve } from '../services/url.service.js'
-import { getUrl } from './url.controller.js'
+import { auth } from '../../../lib/auth.js'
+import { findUserUrls, resolve } from '../services/url.service.js'
+import { getUrl, getUserUrls } from './url.controller.js'
 
 vi.mock('../../../lib/auth.js', () => ({
-  auth: {},
+  auth: {
+    api: {
+      getSession: vi.fn(),
+    },
+  },
 }))
 
 vi.mock('../services/url.service.js', () => ({
   create: vi.fn(),
+  findUserUrls: vi.fn(),
   resolve: vi.fn(),
 }))
 
@@ -56,5 +62,57 @@ describe('getUrl', () => {
     expect(response.redirect).toHaveBeenCalledExactlyOnceWith(
       'https://example.com',
     )
+  })
+})
+
+describe('getUserUrls', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns only URLs belonging to the authenticated user', async () => {
+    const request = { headers: {} } as Request
+    const response = {
+      json: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+    } as unknown as Response
+    const urls = [
+      {
+        id: '01976c18-0e28-7000-8000-000000000000',
+        longUrl: 'https://example.com',
+        shortUrl: 'http://localhost:3000/abc123',
+        clickCount: 42,
+        createdAt: new Date('2026-06-15T10:00:00.000Z'),
+        expiresAt: null,
+      },
+    ]
+
+    vi.mocked(auth.api.getSession).mockResolvedValue({
+      user: {
+        id: 'user-id',
+      },
+    } as never)
+    vi.mocked(findUserUrls).mockResolvedValue(urls)
+
+    await getUserUrls(request, response)
+
+    expect(findUserUrls).toHaveBeenCalledExactlyOnceWith('user-id')
+    expect(response.status).toHaveBeenCalledWith(200)
+    expect(response.json).toHaveBeenCalledWith(urls)
+  })
+
+  it('rejects unauthenticated requests', async () => {
+    const request = { headers: {} } as Request
+    const response = {
+      json: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+    } as unknown as Response
+
+    vi.mocked(auth.api.getSession).mockResolvedValue(null)
+
+    await getUserUrls(request, response)
+
+    expect(response.status).toHaveBeenCalledWith(401)
+    expect(findUserUrls).not.toHaveBeenCalled()
   })
 })

@@ -1,15 +1,24 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { useToast } from '@nuxt/ui/composables'
-import { computed, ref } from 'vue'
+import { isAxiosError } from 'axios'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { apiClient } from '../lib/api-client'
 
-interface ShortenedLink {
-  id: number
-  name: string
+interface UserUrlResponse {
+  id: string
   longUrl: string
   shortUrl: string
-  clicks: number
+  clickCount: number
   createdAt: string
+  expiresAt: string | null
+}
+
+interface ShortenedLink extends UserUrlResponse {
+  name: string
+  clicks: number
+  formattedCreatedAt: string
   status: 'Aktywny' | 'Wygasł'
 }
 
@@ -18,46 +27,17 @@ defineOptions({
 })
 
 const toast = useToast()
+const router = useRouter()
 const search = ref('')
+const links = ref<ShortenedLink[]>([])
+const isLoading = ref(true)
+const loadError = ref('')
 
-const links: ShortenedLink[] = [
-  {
-    id: 1,
-    name: 'Portfolio',
-    longUrl: 'https://example.com/portfolio/projects/url-shortener',
-    shortUrl: 'https://shortly.dev/aB3xP9',
-    clicks: 284,
-    createdAt: '12 czerwca 2026',
-    status: 'Aktywny',
-  },
-  {
-    id: 2,
-    name: 'Dokumentacja projektu',
-    longUrl: 'https://docs.example.com/projects/url-shortener/getting-started',
-    shortUrl: 'https://shortly.dev/kL8mQ2',
-    clicks: 137,
-    createdAt: '8 czerwca 2026',
-    status: 'Aktywny',
-  },
-  {
-    id: 3,
-    name: 'Formularz opinii',
-    longUrl: 'https://forms.example.com/customer-feedback/summer-campaign',
-    shortUrl: 'https://shortly.dev/tR4vN7',
-    clicks: 96,
-    createdAt: '29 maja 2026',
-    status: 'Aktywny',
-  },
-  {
-    id: 4,
-    name: 'Wiosenna kampania',
-    longUrl: 'https://example.com/campaigns/spring-2026',
-    shortUrl: 'https://shortly.dev/cD6fH1',
-    clicks: 421,
-    createdAt: '3 marca 2026',
-    status: 'Wygasł',
-  },
-]
+const dateFormatter = new Intl.DateTimeFormat('pl-PL', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+})
 
 const columns: TableColumn<ShortenedLink>[] = [
   {
@@ -73,7 +53,7 @@ const columns: TableColumn<ShortenedLink>[] = [
     header: 'Kliknięcia',
   },
   {
-    accessorKey: 'createdAt',
+    accessorKey: 'formattedCreatedAt',
     header: 'Utworzono',
   },
   {
@@ -89,10 +69,10 @@ const filteredLinks = computed(() => {
   const query = search.value.trim().toLowerCase()
 
   if (!query) {
-    return links
+    return links.value
   }
 
-  return links.filter((link) =>
+  return links.value.filter((link) =>
     [link.name, link.longUrl, link.shortUrl].some((value) =>
       value.toLowerCase().includes(query),
     ),
@@ -100,12 +80,54 @@ const filteredLinks = computed(() => {
 })
 
 const totalClicks = computed(() =>
-  links.reduce((total, link) => total + link.clicks, 0),
+  links.value.reduce((total, link) => total + link.clicks, 0),
 )
 
 const activeLinks = computed(
-  () => links.filter((link) => link.status === 'Aktywny').length,
+  () => links.value.filter((link) => link.status === 'Aktywny').length,
 )
+
+const mapUrl = (url: UserUrlResponse): ShortenedLink => {
+  let name = url.longUrl
+
+  try {
+    name = new URL(url.longUrl).hostname
+  } catch {
+    // Keep the original URL as a readable fallback.
+  }
+
+  return {
+    ...url,
+    name,
+    clicks: url.clickCount,
+    formattedCreatedAt: dateFormatter.format(new Date(url.createdAt)),
+    status:
+      url.expiresAt && new Date(url.expiresAt).getTime() <= Date.now()
+        ? 'Wygasł'
+        : 'Aktywny',
+  }
+}
+
+async function loadLinks() {
+  isLoading.value = true
+  loadError.value = ''
+
+  try {
+    const { data } = await apiClient.get<UserUrlResponse[]>('/api/urls')
+    links.value = data.map(mapUrl)
+  } catch (error) {
+    if (isAxiosError(error) && error.response?.status === 401) {
+      await router.push('/login')
+      return
+    }
+
+    loadError.value = 'Nie udało się pobrać linków. Spróbuj ponownie.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(loadLinks)
 
 async function copyLink(shortUrl: string) {
   try {
@@ -215,7 +237,7 @@ async function copyLink(shortUrl: string) {
           <div>
             <h2 class="font-semibold text-highlighted">Ostatnie linki</h2>
             <p class="mt-1 text-sm text-muted">
-              Przykładowe dane do czasu podłączenia API.
+              Linki utworzone na Twoim koncie.
             </p>
           </div>
           <UInput
@@ -230,6 +252,7 @@ async function copyLink(shortUrl: string) {
       <UTable
         :data="filteredLinks"
         :columns="columns"
+        :loading="isLoading"
         empty="Nie znaleziono pasujących linków."
       >
         <template #name-cell="{ row }">
@@ -291,6 +314,31 @@ async function copyLink(shortUrl: string) {
           </div>
         </template>
       </UTable>
+
+      <template #footer>
+        <UAlert
+          v-if="loadError"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-circle-alert"
+          title="Nie udało się pobrać linków"
+          :description="loadError"
+          :actions="[
+            {
+              label: 'Spróbuj ponownie',
+              color: 'error',
+              variant: 'soft',
+              onClick: loadLinks,
+            },
+          ]"
+        />
+        <div
+          v-else-if="!isLoading && links.length === 0"
+          class="py-4 text-center text-sm text-muted"
+        >
+          Nie masz jeszcze żadnych skróconych linków.
+        </div>
+      </template>
     </UCard>
   </UContainer>
 </template>

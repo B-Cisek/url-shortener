@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import { fromNodeHeaders } from 'better-auth/node'
 import { createUrlSchema } from '../dto/createUrl.dto.js'
-import { create, resolve } from '../services/url.service.js'
+import { create, findUserUrls, resolve } from '../services/url.service.js'
 import z from 'zod'
 import { auth } from '../../../lib/auth.js'
 import { createClickEvent } from '../../analytics/clickEvent.js'
@@ -43,4 +43,20 @@ export const getUrl = async (req: Request, res: Response) => {
   publishClick(createClickEvent(url.id, req))
 
   res.redirect(url.longUrl)
+}
+
+export const getUserUrls = async (req: Request, res: Response) => {
+  const session = await auth.api.getSession({
+    headers: fromNodeHeaders(req.headers),
+  })
+
+  if (!session) {
+    return res.status(401).json({
+      error: 'Unauthorized',
+    })
+  }
+
+  const urls = await findUserUrls(session.user.id)
+
+  res.status(200).json(urls)
 }
