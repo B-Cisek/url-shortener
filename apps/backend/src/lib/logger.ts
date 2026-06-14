@@ -1,7 +1,10 @@
 import { pino } from 'pino'
 
 export const logger = pino({
-  transport: {
-    target: 'pino-pretty',
-  },
+  transport:
+    process.env.NODE_ENV === 'production'
+      ? undefined
+      : {
+          target: 'pino-pretty',
+        },
 })

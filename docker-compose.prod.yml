@@ -1,0 +1,122 @@
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: apps/backend/Dockerfile
+  restart: unless-stopped
+  environment: &backend-environment
+    NODE_ENV: production
+    APP_PORT: 3000
+    APP_URL: ${APP_URL:-http://localhost}
+    FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+    BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost}
+    BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}
+    DATABASE_URL: postgresql://${DATABASE_USER:-user}:${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}@database:5432/${DATABASE_NAME:-url}
+    REDIS_URL: redis://redis:6379
+    TRUST_PROXY: 1
+    CREATE_URL_RATE_LIMIT_WINDOW_MS: ${CREATE_URL_RATE_LIMIT_WINDOW_MS:-60000}
+    CREATE_URL_RATE_LIMIT_MAX: ${CREATE_URL_RATE_LIMIT_MAX:-10}
+  expose:
+    - '3000'
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+    redis:
+      condition: service_healthy
+  healthcheck:
+    test:
+      [
+        'CMD',
+        'node',
+        '-e',
+        "fetch('http://localhost:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+      ]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 10s
+  networks:
+    - url
+
+services:
+  nginx:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    ports:
+      - '${HTTP_PORT:-80}:80'
+    volumes:
+      - ./docker/nginx/prod.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      backend-1:
+        condition: service_healthy
+      backend-2:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'wget -qO- http://127.0.0.1/health >/dev/null || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - url
+
+  backend-1:
+    <<: *backend
+
+  backend-2:
+    <<: *backend
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    restart: 'no'
+    command: node dist/db/migrate.js
+    environment: *backend-environment
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - url
+
+  database:
+    image: postgres:18.1-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-url}
+      POSTGRES_USER: ${DATABASE_USER:-user}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${DATABASE_USER:-user} -d ${DATABASE_NAME:-url}',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - url
+
+  redis:
+    image: redis:8.8.0-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_prod_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - url
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
+
+networks:
+  url:
+    driver: bridge

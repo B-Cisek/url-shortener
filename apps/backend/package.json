@@ -8,6 +8,7 @@
     "analytics:dev": "tsx watch src/workers/analytics.worker.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
+    "migrate": "node dist/db/migrate.js",
     "analytics:start": "node dist/workers/analytics.worker.js",
     "test": "vitest run",
     "test:watch": "vitest",

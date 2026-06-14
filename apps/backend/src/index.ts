@@ -12,6 +12,8 @@ import compression from 'compression'
 
 const app = express()
 
+app.set('trust proxy', env.trustProxy)
+
 app.use(
   cors({
     origin: env.frontendUrl,
