@@ -15,5 +15,13 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 100,
+    customRules: {
+      '/get-session': false,
+    },
+  },
   trustedOrigins: [env.frontendUrl],
 })

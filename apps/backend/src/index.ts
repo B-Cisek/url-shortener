@@ -6,7 +6,7 @@ import cors from 'cors'
 import { redis } from './lib/redis.js'
 import { pinoHttp } from 'pino-http'
 import { logger } from './lib/logger.js'
-import { router } from './routes.js'
+import { createRouter } from './routes.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import compression from 'compression'
 
@@ -21,14 +21,15 @@ app.use(
 )
 
 app.use(pinoHttp({ logger }))
-app.all('/api/auth/*splat', toNodeHandler(auth))
-app.use(express.json())
-app.use(compression())
-app.use('/', router)
-app.use(errorHandler)
 
 const start = async () => {
   await redis.connect()
+
+  app.all('/api/auth/*splat', toNodeHandler(auth))
+  app.use(express.json())
+  app.use(compression())
+  app.use('/', createRouter())
+  app.use(errorHandler)
 
   const server = app.listen(env.appPort, () => {
     logger.info({ port: env.appPort }, 'Server is running')
