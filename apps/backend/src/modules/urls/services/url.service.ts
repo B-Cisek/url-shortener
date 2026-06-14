@@ -4,6 +4,7 @@ import { findByShortCode, save } from '../repositories/url.repository.js'
 import { urlCacheManager } from '../utils/urlCacheManager.js'
 import { buildShortUrl } from '../utils/buildShortUrl.js'
 import { getNextCounter } from '../repositories/shortCodeCounter.repository.js'
+import type { ResolvedUrl } from '../utils/urlCacheManager.js'
 
 export async function create(
   dto: CreateUrlDto,
@@ -25,7 +26,7 @@ export async function create(
   }
 }
 
-export async function resolve(code: string): Promise<string | undefined> {
+export async function resolve(code: string): Promise<ResolvedUrl | undefined> {
   const cachedUrl = await urlCacheManager.get(code)
 
   if (cachedUrl !== null) {
@@ -42,7 +43,12 @@ export async function resolve(code: string): Promise<string | undefined> {
     return undefined
   }
 
-  await urlCacheManager.set(code, url.longUrl, url.expiresAt)
+  const resolvedUrl = {
+    id: url.id,
+    longUrl: url.longUrl,
+  }
 
-  return url.longUrl
+  await urlCacheManager.set(code, resolvedUrl, url.expiresAt)
+
+  return resolvedUrl
 }

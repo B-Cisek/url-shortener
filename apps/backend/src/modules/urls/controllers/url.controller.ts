@@ -4,6 +4,8 @@ import { createUrlSchema } from '../dto/createUrl.dto.js'
 import { create, resolve } from '../services/url.service.js'
 import z from 'zod'
 import { auth } from '../../../lib/auth.js'
+import { createClickEvent } from '../../analytics/clickEvent.js'
+import { publishClick } from '../../analytics/clickPublisher.js'
 
 export const createUrl = async (req: Request, res: Response) => {
   const result = createUrlSchema.safeParse(req.body)
@@ -32,11 +34,13 @@ export const getUrl = async (req: Request, res: Response) => {
     return res.status(404).send('Not Found')
   }
 
-  const longUrl = await resolve(req.params.code as string)
+  const url = await resolve(req.params.code as string)
 
-  if (longUrl === undefined) {
+  if (url === undefined) {
     return res.status(404).send('Not Found')
   }
 
-  res.redirect(longUrl)
+  publishClick(createClickEvent(url.id, req))
+
+  res.redirect(url.longUrl)
 }

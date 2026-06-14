@@ -5,8 +5,10 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "analytics:dev": "tsx watch src/workers/analytics.worker.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
+    "analytics:start": "node dist/workers/analytics.worker.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

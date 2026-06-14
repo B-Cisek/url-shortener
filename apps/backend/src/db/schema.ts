@@ -6,8 +6,10 @@ import {
   boolean,
   uuid,
   index,
+  integer,
   varchar,
   pgSequence,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core'
 import { COUNTER_KEY } from '../modules/urls/types.js'
 
@@ -144,3 +146,53 @@ export const urlsRelations = relations(urls, ({ one }) => ({
     references: [user.id],
   }),
 }))
+
+export const clickAnalyticsHourly = pgTable(
+  'click_analytics_hourly',
+  {
+    id: uuid()
+      .default(sql`uuidv7()`)
+      .primaryKey(),
+    urlId: uuid('url_id')
+      .notNull()
+      .references(() => urls.id, { onDelete: 'cascade' }),
+    hour: timestamp({ withTimezone: true }).notNull(),
+    countryCode: varchar('country_code', { length: 7 }).notNull(),
+    deviceType: varchar('device_type', { length: 16 }).notNull(),
+    referrerDomain: varchar('referrer_domain', { length: 253 }).notNull(),
+    clickCount: integer('click_count').default(0).notNull(),
+  },
+  (table) => [
+    uniqueIndex('click_analytics_hourly_dimensions_unique').on(
+      table.urlId,
+      table.hour,
+      table.countryCode,
+      table.deviceType,
+      table.referrerDomain,
+    ),
+    index('click_analytics_hourly_url_hour_index').on(table.urlId, table.hour),
+  ],
+)
+
+export const processedClickEvents = pgTable(
+  'processed_click_events',
+  {
+    eventId: uuid('event_id').primaryKey(),
+    processedAt: timestamp('processed_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('processed_click_events_processed_at_index').on(table.processedAt),
+  ],
+)
+
+export const clickAnalyticsHourlyRelations = relations(
+  clickAnalyticsHourly,
+  ({ one }) => ({
+    url: one(urls, {
+      fields: [clickAnalyticsHourly.urlId],
+      references: [urls.id],
+    }),
+  }),
+)

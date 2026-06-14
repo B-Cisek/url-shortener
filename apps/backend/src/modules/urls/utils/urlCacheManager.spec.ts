@@ -18,26 +18,55 @@ describe('urlCacheManager', () => {
   })
 
   it('gets a URL using its namespaced cache key', async () => {
-    redisGet.mockResolvedValue('https://example.com')
-
-    await expect(urlCacheManager.get('abc123')).resolves.toBe(
-      'https://example.com',
+    redisGet.mockResolvedValue(
+      JSON.stringify({
+        id: '01976c18-0e28-7000-8000-000000000000',
+        longUrl: 'https://example.com',
+      }),
     )
+
+    await expect(urlCacheManager.get('abc123')).resolves.toEqual({
+      id: '01976c18-0e28-7000-8000-000000000000',
+      longUrl: 'https://example.com',
+    })
     expect(redisGet).toHaveBeenCalledWith('url:abc123')
   })
 
-  it('sets a URL with a one hour TTL by default', async () => {
-    await urlCacheManager.set('abc123', 'https://example.com', null)
+  it('treats a legacy cache value as a miss', async () => {
+    redisGet.mockResolvedValue('https://example.com')
 
-    expect(redisSet).toHaveBeenCalledWith('url:abc123', 'https://example.com', {
-      EX: 3600,
-    })
+    await expect(urlCacheManager.get('abc123')).resolves.toBeNull()
+  })
+
+  it('sets a URL with a one hour TTL by default', async () => {
+    await urlCacheManager.set(
+      'abc123',
+      {
+        id: '01976c18-0e28-7000-8000-000000000000',
+        longUrl: 'https://example.com',
+      },
+      null,
+    )
+
+    expect(redisSet).toHaveBeenCalledWith(
+      'url:abc123',
+      JSON.stringify({
+        id: '01976c18-0e28-7000-8000-000000000000',
+        longUrl: 'https://example.com',
+      }),
+      {
+        EX: 3600,
+      },
+    )
   })
 
   it('does not cache an expired URL', async () => {
     await urlCacheManager.set(
       'abc123',
-      'https://example.com',
+      {
+        id: '01976c18-0e28-7000-8000-000000000000',
+        longUrl: 'https://example.com',
+      },
       new Date(Date.now() - 1_000),
     )
 

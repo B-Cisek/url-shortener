@@ -54,9 +54,15 @@ describe('resolve', () => {
   })
 
   it('returns the URL from Redis on a cache hit', async () => {
-    cacheGet.mockResolvedValue('https://example.com')
+    cacheGet.mockResolvedValue({
+      id: '01976c18-0e28-7000-8000-000000000000',
+      longUrl: 'https://example.com',
+    })
 
-    await expect(resolve('abc123')).resolves.toBe('https://example.com')
+    await expect(resolve('abc123')).resolves.toEqual({
+      id: '01976c18-0e28-7000-8000-000000000000',
+      longUrl: 'https://example.com',
+    })
     expect(repositoryFindByShortCode).not.toHaveBeenCalled()
   })
 
@@ -71,8 +77,18 @@ describe('resolve', () => {
       expiresAt: null,
     })
 
-    await expect(resolve('abc123')).resolves.toBe('https://example.com')
-    expect(cacheSet).toHaveBeenCalledWith('abc123', 'https://example.com', null)
+    await expect(resolve('abc123')).resolves.toEqual({
+      id: '01976c18-0e28-7000-8000-000000000000',
+      longUrl: 'https://example.com',
+    })
+    expect(cacheSet).toHaveBeenCalledWith(
+      'abc123',
+      {
+        id: '01976c18-0e28-7000-8000-000000000000',
+        longUrl: 'https://example.com',
+      },
+      null,
+    )
   })
 
   it('does not return or cache an expired URL', async () => {
